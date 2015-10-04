@@ -1,0 +1,13 @@
+highSpeedMultiplier: 2
+mediumSpeedMultiplier: 0.6
+lowSpeedMultiplier: 0.5
+haltMultiplier: 0
+highSpeedColor: Yellow
+mediumSpeedColor: Green
+lowSpeedColor: Orange
+haltColor: Red
+ejectColor: Brown
+northColor: White
+southColor: Silver
+eastColor: Gray
+westColor: Black
