@@ -8,17 +8,20 @@ package ga.justin97530.Translink;
  * Created by justin on 03/10/15.
  */
 
-import org.bukkit.ChatColor;
-import org.bukkit.DyeColor;
-import org.bukkit.Location;
+import org.bukkit.*;
 import org.bukkit.block.Block;
+import org.bukkit.block.BlockFace;
 import org.bukkit.block.Sign;
+import org.bukkit.entity.EntityType;
 import org.bukkit.entity.Minecart;
 import org.bukkit.entity.Player;
 import org.bukkit.entity.Vehicle;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
+import org.bukkit.event.block.BlockRedstoneEvent;
 import org.bukkit.event.vehicle.VehicleMoveEvent;
+import org.bukkit.material.Directional;
+import org.bukkit.material.Wool;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.util.Vector;
 
@@ -36,7 +39,25 @@ public final class Translink extends JavaPlugin implements Listener {
     String southColor = "";
     String eastColor = "";
     String westColor = "";
+    Material[] rails = {Material.RAILS, Material.ACTIVATOR_RAIL, Material.DETECTOR_RAIL, Material.POWERED_RAIL};
+
+    private BlockFace isSideBlock(Material mat, Block block) {
+        if(block.getRelative(BlockFace.UP).getType().equals(mat)) return BlockFace.UP;
+        else if(block.getRelative(BlockFace.DOWN).getType().equals(mat)) return BlockFace.DOWN;
+        else if(block.getRelative(BlockFace.EAST).getType().equals(mat)) return BlockFace.EAST;
+        else if(block.getRelative(BlockFace.NORTH).getType().equals(mat)) return BlockFace.NORTH;
+        else if(block.getRelative(BlockFace.WEST).getType().equals(mat)) return BlockFace.WEST;
+        else if(block.getRelative(BlockFace.SOUTH).getType().equals(mat)) return BlockFace.SOUTH;
+        else return BlockFace.SELF;
+    }
+
+    private boolean isRail(Material mat) {
+        if(mat.equals(Material.RAILS) || mat.equals(Material.ACTIVATOR_RAIL) || mat.equals(Material.DETECTOR_RAIL) || mat.equals(Material.POWERED_RAIL)) return true;
+        return false;
+    }
+
     private String getDirection(Location to, Location from) {
+        Wool
         String direction = "TURN";
         if(to.getX() < from.getX() && to.getZ() == from.getZ()) {
             direction = "WEST";
@@ -114,13 +135,16 @@ public final class Translink extends JavaPlugin implements Listener {
         if(vehicle instanceof Minecart && (pastTo == null || pastTo.distance(e.getTo()) >= 1 || pastTo.distance(e.getTo()) <= -1)) {
             Location to = e.getTo();
             pastTo = e.getTo();
+
             Location from = e.getFrom();
             String direction = getDirection(to, from);
+
             Location newLoc = to.clone();
             newLoc.setY(newLoc.getY() - 1);
             Vector velocity = vehicle.getVelocity();
+
             Block block = newLoc.getBlock();
-            if(block.getType().name().equals("WOOL")) {
+            if(block.getType().equals(Material.WOOL)) {
                 String color = DyeColor.getByData(block.getData()).toString();
                 if(color.equalsIgnoreCase(highSpeedColor)) {
                     velocity = newVelocity(velocity, direction, highSpeedMultiplier);
@@ -141,19 +165,36 @@ public final class Translink extends JavaPlugin implements Listener {
                 } else if(color.equalsIgnoreCase(westColor)) {
                     velocity = setDirection(velocity, direction, "WEST");
                 }
+            } else if(block.getType().equals(Material.IRON_BLOCK) && block.getBlockPower() > 0) {
+                vehicle.remove();
             }
+
             vehicle.setVelocity(velocity);
 
             if(vehicle.isEmpty() || !(vehicle.getPassenger() instanceof Player)) return;
             Location signLoc = to.clone();
             signLoc.setY(signLoc.getY() - 2);
-            if(!(signLoc.getBlock().getType().name().equals("SIGN_POST") || signLoc.getBlock().getType().name().equals("WALL_SIGN"))) return;
+            if(!(signLoc.getBlock().getType().equals(Material.SIGN_POST) || signLoc.getBlock().getType().equals(Material.WALL_SIGN))) return;
             Sign sign = (Sign) signLoc.getBlock().getState();
             StringBuilder text = new StringBuilder();
             for (String s : sign.getLines()) {
                 text.append(s);
             }
             vehicle.getPassenger().sendMessage(ChatColor.GOLD + ChatColor.translateAlternateColorCodes('&', text.toString()));
+        }
+    }
+
+    @EventHandler
+    public void onBlockRedstoneChange(BlockRedstoneEvent e) {
+        Block block = e.getBlock();
+        Material blockType = block.getType();
+        BlockFace found = isSideBlock(Material.GOLD_BLOCK, block);
+        if(e.getNewCurrent() > 0 && e.getOldCurrent() == 0 && !found.equals(BlockFace.SELF)) {
+            Block upBlock = block.getRelative(found).getRelative(BlockFace.UP);
+            if(isRail(upBlock.getType())) {
+                Location upBlockLoc = upBlock.getLocation().add(0.5, 0.5, 0.5);
+                upBlockLoc.getWorld().spawnEntity(upBlockLoc, EntityType.MINECART);
+            }
         }
     }
 }
